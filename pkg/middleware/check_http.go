@@ -12,7 +12,8 @@ import (
 
 func CheckHttpOrigin(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON); if err != nil {
+		cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
@@ -32,7 +33,8 @@ func CheckHttpOrigin(next http.HandlerFunc) http.HandlerFunc {
 
 func CheckHttpHost(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON); if err != nil {
+		cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
@@ -56,7 +58,7 @@ func CheckContentTypeMustJson(next http.HandlerFunc) http.HandlerFunc {
 
 		if !ok {
 			http.Error(w,
-				string(pkg.STATUS_RESP_MESSAGE_PRECONDITION_FAILED + "; Content-Type must application/json"),
+				string(pkg.STATUS_RESP_MESSAGE_PRECONDITION_FAILED+"; Content-Type must application/json"),
 				http.StatusPreconditionFailed)
 			return
 		}
@@ -86,7 +88,7 @@ func CheckHeaderAuthorization(next http.HandlerFunc) http.HandlerFunc {
 
 		if len(authorization) <= 0 {
 			http.Error(w,
-				string(pkg.STATUS_RESP_MESSAGE_PRECONDITION_FAILED + "; Authorization header required"),
+				string(pkg.STATUS_RESP_MESSAGE_PRECONDITION_FAILED+"; Authorization header required"),
 				http.StatusPreconditionFailed)
 			return
 		}
@@ -94,4 +96,3 @@ func CheckHeaderAuthorization(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r)
 	}
 }
-

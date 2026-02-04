@@ -25,6 +25,7 @@ var (
 )
 
 type Uuid_e int
+
 const (
 	UUID_UNDEFINED Uuid_e = iota
 	UUID_V1
@@ -40,30 +41,35 @@ const (
 
 func GenerateUUID(t Uuid_e) (uuid.UUID, error) {
 	switch t {
-		case UUID_V1: {
+	case UUID_V1:
+		{
 			return uuid.NewUUID()
 		}
-		case UUID_V4: {
+	case UUID_V4:
+		{
 			return uuid.NewRandom()
 		}
-		case UUID_V7: {
+	case UUID_V7:
+		{
 			return uuid.NewV7()
 		}
-		default: {
+	default:
+		{
 			return uuid.Nil, errors.New("undefined uuid")
 		}
 	}
-} 
+}
 
-// @brief copy origin dir to target dir
+// copy origin dir to target dir
 //
-// @note origin & target are relative from executeable
+// origin & target are relative from executeable
 //
-// @param o string - origin dir
-// @param t string - target dir
-// @param f bool - force overwrite if true
+// params:
+// 	o string - origin dir
+// 	t string - target dir
+// 	f bool - force overwrite if true
 //
-// @return error
+// return: error
 func CopyDir(o, t string, f bool) error {
 	return filepath.WalkDir(o, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -98,34 +104,35 @@ func CopyDir(o, t string, f bool) error {
 	})
 }
 
-// @brief check if id is valid
-// 
-// @note apply for unsigned integer
-// 
-// @param id string
-// 
-// @return error
+// check if id is valid
+//
+// apply for unsigned integer
+//
+// params:
+// 	id string
+//
+// return: error
 func IsValidId(id string) error {
 	if id == "" {
 		return errors.New("empty value")
 	}
 
-	_, err := strconv.ParseUint(id, 10, 64); if err == nil {
+	_, err := strconv.ParseUint(id, 10, 64)
+	if err == nil {
 		return nil
 	}
 
 	return errors.New("unknown uint")
 }
 
-// @brief check if uuid is valid
-// 
-// @note apply for uuid
+// check if uuid is valid
 //
-// @note check your trim parse
-// 
-// @param input string
-// 
-// @return (Uuid_e, error)
+// apply for uuid, check your trim parse
+//
+// params:
+// 	input string
+//
+// return: (Uuid_e, error)
 func IsValidUuid(input string) (Uuid_e, error) {
 	if input == "" {
 		return UUID_UNDEFINED, errors.New("empty value")
@@ -148,84 +155,85 @@ func IsValidUuid(input string) (Uuid_e, error) {
 	return UUID_UNDEFINED, errors.New("unknown uuid")
 }
 
-// @brief parse param and check what kind of authorization header
+// parse param and check what kind of authorization header
 //
-// @param v string - "Authorization" header value
+// params:
+//	v string - "Authorization" header value
 //
-// @return (scheme, credential string, err error)
+// return: (scheme, credential string, err error)
 func ParseAuthorizationHeader(v string) (scheme, credential string, err error) {
 	if v == "" {
-        return "", "", errors.New("expecting authorization value")
-    }
+		return "", "", errors.New("expecting authorization value")
+	}
 
-    parts := strings.SplitN(v, " ", 2)
+	parts := strings.SplitN(v, " ", 2)
 	if len(parts) != 2 {
-        return "", "", errors.New("wrong authorization format")
-    }
+		return "", "", errors.New("wrong authorization format")
+	}
 
-    scheme = strings.TrimSpace(parts[0])
-    credential = strings.TrimSpace(parts[1])
+	scheme = strings.TrimSpace(parts[0])
+	credential = strings.TrimSpace(parts[1])
 
 	return scheme, credential, nil
 }
 
-// @brief generate random alphanumeric
+// generate random alphanumeric
 //
-// @param length int
+// params:
+//	length int
 //
-// @return (string, error) - (actual string, nil if ok)
+// return: (string, error) - (actual string, nil if ok)
 func GenRandomAlphanumeric(length int) (string, error) {
-    if length <= 0 {
-        return "", errors.New("length can't be empty")
-    }
-    
-    result := make([]byte, length)
-    
-    randomBytes := make([]byte, length)
-    _, err := rand.Read(randomBytes)
-    if err != nil {
-        return "", err
-    }
-    
-    for i := 0; i < length; i++ {
-        result[i] = ALPHANUMERIC[randomBytes[i]%byte(len(ALPHANUMERIC))]
-    }
-    
-    return string(result), nil
+	if length <= 0 {
+		return "", errors.New("length can't be empty")
+	}
+
+	result := make([]byte, length)
+
+	randomBytes := make([]byte, length)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	for i := 0; i < length; i++ {
+		result[i] = ALPHANUMERIC[randomBytes[i]%byte(len(ALPHANUMERIC))]
+	}
+
+	return string(result), nil
 }
 
-// @brief generate random number
+// generate random number
 //
-// @param min int - min range
+// params:
+// 	min int - min range
+// 	max int - max range
 //
-// @param max int - max range
-//
-// @Return (int, error)
+// return: (int, error)
 func GenRandomNumber(min, max int) (int, error) {
 	if min > max {
-        return 0, fmt.Errorf("min (%d) cannot be greater than max (%d)", min, max)
-    }
-    if min == max {
-        return min, nil
-    }
+		return 0, fmt.Errorf("min (%d) cannot be greater than max (%d)", min, max)
+	}
+	if min == max {
+		return min, nil
+	}
 
-    var buf [8]byte
-    _, err := rand.Read(buf[:])
-    if err != nil {
-        return 0, err
-    }
+	var buf [8]byte
+	_, err := rand.Read(buf[:])
+	if err != nil {
+		return 0, err
+	}
 
 	// convert to uint64 then int (sys 64)
-    r := binary.LittleEndian.Uint64(buf[:])
-    rangeSize := uint64(max - min + 1)
-    result := min + int(r%rangeSize)
-    return result, nil
+	r := binary.LittleEndian.Uint64(buf[:])
+	rangeSize := uint64(max - min + 1)
+	result := min + int(r%rangeSize)
+	return result, nil
 }
 
-// @brief timestamp now
+// timestamp now
 //
-// @return string
+// return: string
 func TimestampNow() string {
 	return time.Now().UTC().Format("2006-01-02 15:04:05.000000000")
 }
-

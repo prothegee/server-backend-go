@@ -15,30 +15,30 @@ import (
 // --------------------------------------------------------- //
 
 // account kv of user session holder type
-type UserSession struct {}
+type UserSession struct{}
 
-// @brief db_rd_main user session type
+// db_rd_main user session type
 type UserSession_t struct {
-	Id uuid.UUID
+	Id         uuid.UUID
 	Dt_Created time.Time
 	Dt_Expired time.Time
 }
 
-// @brief db_rd_main user session type json
+// db_rd_main user session type json
 type UserSession_tj struct {
-	Id uuid.UUID `json:"id"`
+	Id         uuid.UUID `json:"id"`
 	Dt_Created time.Time `json:"dt_created"`
 	Dt_Expired time.Time `json:"dt_expired"`
 }
 
-// @brief conversion UserSession_t to UserSession_tj
+// conversion UserSession_t to UserSession_tj
 //
-// @receiver d UserSession_t
+// receiver: d UserSession_t
 //
-// @return UserSession_tj
+// return: UserSession_tj
 func (d UserSession_t) ToJSON() UserSession_tj {
 	return UserSession_tj{
-		Id: d.Id,
+		Id:         d.Id,
 		Dt_Created: d.Dt_Created,
 		Dt_Expired: d.Dt_Expired,
 	}
@@ -56,26 +56,25 @@ const (
 )
 
 const (
-	UserSessionSESSION_id = "id"
+	UserSessionSESSION_id         = "id"
 	UserSessionSESSION_dt_created = "dt_created"
 	UserSessionSESSION_dt_expired = "dt_expired"
 )
 
 // --------------------------------------------------------- //
 
-// @brief create new session id from existing userId
+// create new session id from existing userId
 //
-// @note has default ttl for 6 minutes
+// has default ttl for 6 minutes
 //
-// @param rdb *redis.Client - must db_rd.MainDb
+// params:
+// 	rdb *redis.Client - must db_rd.MainDb
+// 	ctx context.Context
+// 	userId uuid.UUID
 //
-// @param ctx context.Context
-//
-// @param userId uuid.UUID
-//
-// @return error
+// return: error
 func (_ UserSession) SetNewSession(rdb *redis.Client, ctx context.Context,
-								   userId uuid.UUID) error {
+	userId uuid.UUID) error {
 	key := fmt.Sprintf(NS_ACCOUNT_USER_ID, userId.String())
 
 	id, err := pkg.GenerateUUID(pkg.UUID_V7)
@@ -86,7 +85,7 @@ func (_ UserSession) SetNewSession(rdb *redis.Client, ctx context.Context,
 	dtExpired := dtCreated.Add(time.Minute * 6)
 
 	sessionData := UserSession_t{
-		Id: id,
+		Id:         id,
 		Dt_Created: dtCreated,
 		Dt_Expired: dtExpired,
 	}
@@ -110,17 +109,16 @@ func (_ UserSession) SetNewSession(rdb *redis.Client, ctx context.Context,
 	return nil
 }
 
-// @brief get existing session data from userid
+// get existing session data from userid
 //
-// @param rdb *redis.Client - must db_rd.MainDb
+// params:
+// 	rdb *redis.Client - must db_rd.MainDb
+// 	ctx context.Context
+// 	userId uuid.UUID
 //
-// @param ctx context.Context
-//
-// @param userId uuid.UUID
-//
-// @return (UserSession_tj, error) - (data, nil if ok)
+// return: (UserSession_tj, error) - (data, nil if ok)
 func (_ UserSession) GetSessionData(rdb *redis.Client, ctx context.Context,
-									userId uuid.UUID) (UserSession_tj, error) {
+	userId uuid.UUID) (UserSession_tj, error) {
 	var (
 		res UserSession_tj
 	)
@@ -143,35 +141,32 @@ func (_ UserSession) GetSessionData(rdb *redis.Client, ctx context.Context,
 	return res, nil
 }
 
-// @brief get existing session from userid
+// get existing session from userid
 //
-// @param rdb *redis.Client - must db_rd.MainDb
+// params:
+// 	rdb *redis.Client - must db_rd.MainDb
+// 	ctx context.Context
+// 	userId uuid.UUID
 //
-// @param ctx context.Context
-//
-// @param userId uuid.UUID
-//
-// @return (bool, error) - true if exists
+// return: (bool, error) - true if exists
 func (_ UserSession) GetSessionExistence(rdb *redis.Client, ctx context.Context,
-										 userId uuid.UUID) (bool, error) {
+	userId uuid.UUID) (bool, error) {
 	key := fmt.Sprintf(NS_ACCOUNT_USER_ID, userId.String())
 
-	return rdb.HExists(ctx, key, UserSessionKEY_session).Result();
+	return rdb.HExists(ctx, key, UserSessionKEY_session).Result()
 }
 
-// @brief delete existing session from userid
+// delete existing session from userid
 //
-// @param rdb *redis.Client - must db_rd.MainDb
+// params:
+// 	rdb *redis.Client - must db_rd.MainDb
+// 	ctx context.Context
+// 	userId uuid.UUID
 //
-// @param ctx context.Context
-//
-// @param userId uuid.UUID
-//
-// @return (int64, error) - greater than 0 mean ok
+// return: (int64, error) - greater than 0 mean ok
 func (_ UserSession) DeleteSession(rdb *redis.Client, ctx context.Context,
-								   userId uuid.UUID) (int64, error) {
+	userId uuid.UUID) (int64, error) {
 	key := fmt.Sprintf(NS_ACCOUNT_USER_ID, userId.String())
 
 	return rdb.HDel(ctx, key, UserSessionKEY_session).Result()
 }
-

@@ -15,14 +15,14 @@ import (
 // --------------------------------------------------------- //
 
 const (
-	GCM_TAG_SIZE = 16 // equal to EVP_GCM_TLS_TAG_LEN in OpenSSL
+	GCM_TAG_SIZE    = 16 // equal to EVP_GCM_TLS_TAG_LEN in OpenSSL
 	ARGON2_MIN_SALT = 16
 )
 
 type Argon2idParams struct {
-	Computation uint32 // time cost
-	Block uint32 // memory cost
-	Parallelism uint32 // threads
+	Computation   uint32 // time cost
+	Block         uint32 // memory cost
+	Parallelism   uint32 // threads
 	DerivedLength uint32 // output hash len in bytes
 }
 
@@ -30,16 +30,16 @@ type Argon2idParams struct {
 //
 // @note specification is reflect from my c++ backend
 var Argon2idParams_default = Argon2idParams{
-	Computation: 2,
-	Block: 1 << 20,
-	Parallelism: 2,
+	Computation:   2,
+	Block:         1 << 20,
+	Parallelism:   2,
 	DerivedLength: 32,
 }
 
 // --------------------------------------------------------- //
 
 func PadPKCS7(src []byte) []byte {
-	padding := aes.BlockSize - len(src) % aes.BlockSize
+	padding := aes.BlockSize - len(src)%aes.BlockSize
 	padtext := make([]byte, padding)
 
 	for i := range padtext {
@@ -243,4 +243,3 @@ func Argon2idVerify(input, encodedHash string) (bool, error) {
 
 	return string(actualHash) == string(expectedHash), nil
 }
-
