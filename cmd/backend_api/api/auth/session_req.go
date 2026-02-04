@@ -19,19 +19,21 @@ import (
 
 func getAuthSession(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -39,12 +41,14 @@ func getAuthSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userSession := db_rd_main_account_user.UserSession{}
-	found, err := userSession.GetSessionExistence(db_rd.MainDb, ctx, uid); if err != nil {
+	found, err := userSession.GetSessionExistence(db_rd.MainDb, ctx, uid)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -57,31 +61,36 @@ func getAuthSession(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
 
-	data, err := userSession.GetSessionData(db_rd.MainDb, ctx, uid); if err != nil {
+	data, err := userSession.GetSessionData(db_rd.MainDb, ctx, uid)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
 
-	payload, err := json.Marshal(data); if err != nil {
+	payload, err := json.Marshal(data)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusInternalServerError)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -92,7 +101,8 @@ func getAuthSession(w http.ResponseWriter, r *http.Request) {
 	resp.Message = "found"
 	resp.Data = json.RawMessage(payload)
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -100,20 +110,21 @@ func getAuthSession(w http.ResponseWriter, r *http.Request) {
 
 func postAuthSession(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
 	// expecting no body data
-	bodyReq, err := io.ReadAll(r.Body);
+	bodyReq, err := io.ReadAll(r.Body)
 	if len(string(bodyReq)) > 0 {
 		resp.Message = "body data should be empty"
 
 		w.WriteHeader(http.StatusPreconditionFailed)
 
-		err := json.NewEncoder(w).Encode(resp); if err != nil {
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -122,12 +133,14 @@ func postAuthSession(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -136,12 +149,14 @@ func postAuthSession(w http.ResponseWriter, r *http.Request) {
 
 	account := db_pg_main_account_user.User{}
 
-	ok, err := account.SelectIdIfExists(db_pg.MainDb, ctx, uid); if err != nil {
+	ok, err := account.SelectIdIfExists(db_pg.MainDb, ctx, uid)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -151,7 +166,8 @@ func postAuthSession(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -160,12 +176,14 @@ func postAuthSession(w http.ResponseWriter, r *http.Request) {
 
 	// create new session
 	userSession := db_rd_main_account_user.UserSession{}
-	err = userSession.SetNewSession(db_rd.MainDb, ctx, uid); if err != nil {
+	err = userSession.SetNewSession(db_rd.MainDb, ctx, uid)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -175,7 +193,8 @@ func postAuthSession(w http.ResponseWriter, r *http.Request) {
 	resp.Ok = true
 	resp.Message = "session created"
 
-	err = json.NewEncoder(w).Encode(resp);if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -183,33 +202,36 @@ func postAuthSession(w http.ResponseWriter, r *http.Request) {
 
 func deleteAuthSession(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
 
-
 	userSession := db_rd_main_account_user.UserSession{}
-	total, err := userSession.DeleteSession(db_rd.MainDb, ctx, uid); if err != nil {
+	total, err := userSession.DeleteSession(db_rd.MainDb, ctx, uid)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -221,17 +243,19 @@ func deleteAuthSession(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
 
-	resp.Ok = true;
+	resp.Ok = true
 	resp.Message = "deleted"
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -240,23 +264,27 @@ func deleteAuthSession(w http.ResponseWriter, r *http.Request) {
 // --------------------------------------------------------- //
 
 const BackendApiAuthSessionHint = "/api/auth/session"
+
 func BackendApiAuthSession(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(pkg.HTTP_CT_HINT, pkg.HTTP_CT_APPLICATION_JSON)
 
 	switch method := r.Method; method {
-		case http.MethodGet: {
+	case http.MethodGet:
+		{
 			getAuthSession(w, r)
 		}
-		case http.MethodPost: {
+	case http.MethodPost:
+		{
 			postAuthSession(w, r)
 		}
-		case http.MethodDelete: {
+	case http.MethodDelete:
+		{
 			deleteAuthSession(w, r)
 		}
-		default: {
+	default:
+		{
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_METHOD_NOT_ALLOWED,
 				http.StatusMethodNotAllowed)
 		}
 	}
 }
-

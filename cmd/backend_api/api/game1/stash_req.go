@@ -21,10 +21,10 @@ type postGame1StashRequestData struct {
 }
 
 type patchGame1StashRequestData struct {
-	Name string `json:"name"`
-	Operand db_pg_main_game1_stash.Game1StashItemOperand_e `json:"operand"`
-	Item string `json:"item"`
-	Quantity uint64 `json:"quantity"`
+	Name     string                                         `json:"name"`
+	Operand  db_pg_main_game1_stash.Game1StashItemOperand_e `json:"operand"`
+	Item     string                                         `json:"item"`
+	Quantity uint64                                         `json:"quantity"`
 }
 
 type deleteGame1StashRequestData struct {
@@ -35,19 +35,21 @@ type deleteGame1StashRequestData struct {
 
 func getGame1Stash(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -63,7 +65,8 @@ func getGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -78,24 +81,28 @@ func getGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 	if stashIdStr == "all" {
 		// query all stash by authorization id
-		data, err := game1Stash.SelectAllStashByUid(db_pg.MainDb, ctx, uid); if err != nil {
+		data, err := game1Stash.SelectAllStashByUid(db_pg.MainDb, ctx, uid)
+		if err != nil {
 			resp.Message = err.Error()
 
 			w.WriteHeader(http.StatusBadRequest)
 
-			err = json.NewEncoder(w).Encode(resp); if err != nil {
+			err = json.NewEncoder(w).Encode(resp)
+			if err != nil {
 				http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 					http.StatusInternalServerError)
 			}
 			return
 		}
 
-		payload, err := json.Marshal(data); if err != nil {
+		payload, err := json.Marshal(data)
+		if err != nil {
 			resp.Message = err.Error()
 
 			w.WriteHeader(http.StatusBadRequest)
 
-			err = json.NewEncoder(w).Encode(resp); if err != nil {
+			err = json.NewEncoder(w).Encode(resp)
+			if err != nil {
 				http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 					http.StatusInternalServerError)
 			}
@@ -108,12 +115,14 @@ func getGame1Stash(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if stashIdStr != "all" && uuidType != pkg.UUID_UNDEFINED {
-		stashId, err := uuid.FromBytes([]byte(strings.TrimSpace(stashIdStr))); if err != nil {
+		stashId, err := uuid.FromBytes([]byte(strings.TrimSpace(stashIdStr)))
+		if err != nil {
 			resp.Message = err.Error()
 
 			w.WriteHeader(http.StatusBadRequest)
 
-			err = json.NewEncoder(w).Encode(resp); if err != nil {
+			err = json.NewEncoder(w).Encode(resp)
+			if err != nil {
 				http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 					http.StatusInternalServerError)
 			}
@@ -121,24 +130,28 @@ func getGame1Stash(w http.ResponseWriter, r *http.Request) {
 		}
 
 		data, err := game1Stash.SelectStashByIdAndUid(db_pg.MainDb,
-			ctx, stashId, uid); if err != nil {
+			ctx, stashId, uid)
+		if err != nil {
 			resp.Message = err.Error()
 
 			w.WriteHeader(http.StatusBadRequest)
 
-			err = json.NewEncoder(w).Encode(resp); if err != nil {
+			err = json.NewEncoder(w).Encode(resp)
+			if err != nil {
 				http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 					http.StatusInternalServerError)
 			}
 			return
 		}
 
-		payload, err := json.Marshal(data); if err != nil {
+		payload, err := json.Marshal(data)
+		if err != nil {
 			resp.Message = err.Error()
 
 			w.WriteHeader(http.StatusBadRequest)
 
-			err = json.NewEncoder(w).Encode(resp); if err != nil {
+			err = json.NewEncoder(w).Encode(resp)
+			if err != nil {
 				http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 					http.StatusInternalServerError)
 			}
@@ -150,7 +163,8 @@ func getGame1Stash(w http.ResponseWriter, r *http.Request) {
 		resp.Data = json.RawMessage(payload)
 	}
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -159,18 +173,20 @@ func getGame1Stash(w http.ResponseWriter, r *http.Request) {
 func postGame1Stash(w http.ResponseWriter, r *http.Request) {
 	req := postGame1StashRequestData{}
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&req); if err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_NOT_VALID,
 			http.StatusBadRequest)
 		return
 	}
-	_, err = json.Marshal(req); if err != nil {
+	_, err = json.Marshal(req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_FAIL_TO_PARSE,
 			http.StatusBadRequest)
 		return
@@ -181,7 +197,8 @@ func postGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -189,12 +206,14 @@ func postGame1Stash(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -205,12 +224,14 @@ func postGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 	game1Stash := db_pg_main_game1_stash.Stash{}
 
-	err = game1Stash.InsertNewStash(db_pg.MainDb, ctx, uid, req.Name); if err != nil {
+	err = game1Stash.InsertNewStash(db_pg.MainDb, ctx, uid, req.Name)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -220,7 +241,8 @@ func postGame1Stash(w http.ResponseWriter, r *http.Request) {
 	resp.Ok = true
 	resp.Message = "created"
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -229,18 +251,20 @@ func postGame1Stash(w http.ResponseWriter, r *http.Request) {
 func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 	req := patchGame1StashRequestData{}
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&req); if err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_NOT_VALID,
 			http.StatusBadRequest)
 		return
 	}
-	_, err = json.Marshal(req); if err != nil {
+	_, err = json.Marshal(req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_FAIL_TO_PARSE,
 			http.StatusBadRequest)
 		return
@@ -251,7 +275,8 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -262,7 +287,8 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -273,7 +299,8 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -284,7 +311,8 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -292,12 +320,14 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -310,12 +340,14 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 	err, extErrMsg := stashItem.UpdateStashByUidAndName(db_pg.MainDb, ctx, uid, req.Name,
 		db_pg_main_game1_stash.StashItem_t{Item: req.Item, Quantity: req.Quantity},
-		req.Operand); if err != nil {
+		req.Operand)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -330,7 +362,8 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 		resp.Message = extErrMsg
 	}
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -339,18 +372,20 @@ func patchGame1Stash(w http.ResponseWriter, r *http.Request) {
 func deleteGame1Stash(w http.ResponseWriter, r *http.Request) {
 	req := deleteGame1StashRequestData{}
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&req); if err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_NOT_VALID,
 			http.StatusBadRequest)
 		return
 	}
-	_, err = json.Marshal(req); if err != nil {
+	_, err = json.Marshal(req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_FAIL_TO_PARSE,
 			http.StatusBadRequest)
 		return
@@ -361,7 +396,8 @@ func deleteGame1Stash(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -369,12 +405,14 @@ func deleteGame1Stash(w http.ResponseWriter, r *http.Request) {
 	}
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -384,24 +422,28 @@ func deleteGame1Stash(w http.ResponseWriter, r *http.Request) {
 	mw.CheckAuthorizationHeaderBearerSession(w, &resp, ctx, uid)
 
 	stash := db_pg_main_game1_stash.Stash{}
-	stashId, err := uuid.FromBytes([]byte(strings.TrimSpace(req.StashId))); if err != nil {
+	stashId, err := uuid.FromBytes([]byte(strings.TrimSpace(req.StashId)))
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
 
-	err = stash.DeleteStashById(db_pg.MainDb, ctx, stashId); if err != nil {
+	err = stash.DeleteStashById(db_pg.MainDb, ctx, stashId)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -411,7 +453,8 @@ func deleteGame1Stash(w http.ResponseWriter, r *http.Request) {
 	resp.Ok = true
 	resp.Message = "deleted"
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -420,23 +463,29 @@ func deleteGame1Stash(w http.ResponseWriter, r *http.Request) {
 // --------------------------------------------------------- //
 
 const BackendApiGame1StashHint = "/api/game1/stash"
+
 func BackendApiGame1Stash(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(pkg.HTTP_CT_HINT, pkg.HTTP_CT_APPLICATION_JSON)
 
 	switch method := r.Method; method {
-		case http.MethodGet: {
+	case http.MethodGet:
+		{
 			getGame1Stash(w, r)
 		}
-		case http.MethodPost: {
+	case http.MethodPost:
+		{
 			postGame1Stash(w, r)
 		}
-		case http.MethodPatch: {
+	case http.MethodPatch:
+		{
 			patchGame1Stash(w, r)
 		}
-		case http.MethodDelete: {
+	case http.MethodDelete:
+		{
 			deleteGame1Stash(w, r)
 		}
-		default: {
+	default:
+		{
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_METHOD_NOT_ALLOWED,
 				http.StatusMethodNotAllowed)
 		}

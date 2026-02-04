@@ -19,13 +19,14 @@ const backendApi = "backend_api"
 func main() {
 	mux := http.NewServeMux()
 	ctx := context.Background()
-	cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON); if err != nil {
+	cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		return
 	}
 	listAddr := fmt.Sprintf("%s:%s",
 		cfg.Listener.BackendApi.Address,
-		strconv.Itoa(int(cfg.Listener.BackendApi.Port))) 
+		strconv.Itoa(int(cfg.Listener.BackendApi.Port)))
 	log.Printf("INFO: %s run on %s\n", backendApi, listAddr)
 
 	RegistrarDbPostgresMain()
@@ -48,4 +49,3 @@ func main() {
 
 	log.Fatal(http.ListenAndServe(listAddr, mux))
 }
-

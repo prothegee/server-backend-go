@@ -25,10 +25,11 @@ func main() {
 	// r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
-			"bootstrap.servers": "127.0.0.1:9092",
-		}); if err != nil {
-			log.Fatalf("fail to create kafka producer: %v", err.Error())
-		}
+		"bootstrap.servers": "127.0.0.1:9092",
+	})
+	if err != nil {
+		log.Fatalf("fail to create kafka producer: %v", err.Error())
+	}
 
 	defer p.Close()
 
@@ -47,7 +48,7 @@ func main() {
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		sc := <- sigCh
+		sc := <-sigCh
 		fmt.Printf("\nSIG (%d) shutingdown gracefully at %s\n", sc, pkg.TimestampNow())
 		cancel()
 	}()
@@ -55,11 +56,13 @@ func main() {
 	// main loop
 	for {
 		select {
-			case <-ctx.Done(): {
+		case <-ctx.Done():
+			{
 				log.Print("producer stop\n")
 				return
 			}
-			default: {
+		default:
+			{
 				for _, t := range trades {
 					t.Update()
 				}
@@ -69,11 +72,12 @@ func main() {
 
 				err = p.Produce(&kafka.Message{
 					TopicPartition: kafka.TopicPartition{
-						Topic: &topic,
+						Topic:     &topic,
 						Partition: kafka.PartitionAny,
 					},
 					Value: []byte(payload),
-				}, nil); if err != nil {
+				}, nil)
+				if err != nil {
 					log.Printf("producer error: %v\n", err.Error())
 				}
 
@@ -84,4 +88,3 @@ func main() {
 		}
 	}
 }
-
