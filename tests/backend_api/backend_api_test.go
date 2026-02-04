@@ -1,7 +1,3 @@
-/*
-IMPORTANT:
-- should be on last test
-*/
 package test_unittest
 
 import (
@@ -10,18 +6,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"net"
 	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
 	backend_api "showcase-backend-go/cmd/backend_api/api"
 	backend_api_account "showcase-backend-go/cmd/backend_api/api/account"
 	backend_api_auth "showcase-backend-go/cmd/backend_api/api/auth"
 	backend_api_game1 "showcase-backend-go/cmd/backend_api/api/game1"
 	"showcase-backend-go/pkg"
-	config "showcase-backend-go/pkg/configs"
 	mw "showcase-backend-go/pkg/middleware"
 
 	"github.com/google/uuid"
@@ -35,7 +35,7 @@ import (
 //
 // server - as in target from backend listener
 var (
-	cfg pkg.ConfigServer
+	cfg    pkg.ConfigServer
 	server string
 )
 
@@ -51,327 +51,529 @@ var (
 //
 // stashName
 var (
-	userId uuid.UUID
+	userId                                        uuid.UUID
 	email, password, authorizationData, stashName string
+)
+
+// test server management
+var (
+	serverProcess *exec.Cmd
+	testBinary    = "backend_api_test"
+	projectRoot   string
+	testDir       string
 )
 
 // --------------------------------------------------------- //
 
-// func doRequest(method, url string,
-// 			   headers map[string]string,
-// 		   	   body any) (*http.Response, error) {
-// 	var err error
-// 	var bodyBytes []byte
-// }
+// find project root directory by looking for go.mod
+func findProjectRoot() (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
 
-func initializeConfig() {
+	// navigate up until we find go.mod
+	for {
+		if _, err := os.Stat(filepath.Join(wd, "go.mod")); err == nil {
+			return wd, nil
+		}
+
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			break // reached root
+		}
+		wd = parent
+	}
+
+	return "", fmt.Errorf("project root not found")
+}
+
+// build and start backend server for integration tests
+func setupTestServer(t *testing.T) {
+	t.Helper()
+
+	// find project root
 	var err error
-	cfg, err = pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON); if err != nil {
-		log.Fatal(err.Error())
+	projectRoot, err = findProjectRoot()
+	if err != nil {
+		t.Fatalf("failed to find project root: %v", err)
+	}
+
+	// get current test directory (where test is running from)
+	testDir, err = os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get test directory: %v", err)
+	}
+
+	// build the server binary in project root
+	t.Log("building server binary...")
+	buildCmd := exec.Command("go", "build", "-o", testBinary, "./cmd/backend_api")
+	buildCmd.Dir = projectRoot
+
+	// capture output for debugging
+	buildOutput, err := buildCmd.CombinedOutput()
+	if err != nil {
+		t.Logf("build output:\n%s", string(buildOutput))
+		t.Fatalf("failed to build server: %v", err)
+	}
+	t.Log("server binary built successfully")
+
+	// start the server with correct working directory
+	serverProcess = exec.Command(filepath.Join(projectRoot, testBinary))
+	serverProcess.Dir = testDir
+
+	// redirect output for debugging
+	serverProcess.Stdout = os.Stdout
+	serverProcess.Stderr = os.Stderr
+
+	t.Log("starting server...")
+	if err := serverProcess.Start(); err != nil {
+		t.Fatalf("failed to start server: %v", err)
+	}
+
+	// load config using absolute path
+	configPath := filepath.Join(projectRoot, "config.json")
+	t.Logf("loading config from: %s", configPath)
+
+	cfg, err = pkg.ConfigServerLoad(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// validate config has required fields
+	if len(cfg.Security.WhitelistHost) == 0 || len(cfg.Security.WhitelistOrigin) == 0 {
+		t.Fatal("config missing required whitelist host or origin")
 	}
 
 	server = fmt.Sprintf("http://%s:%s",
 		cfg.Listener.BackendApi.Address, strconv.Itoa(int(cfg.Listener.BackendApi.Port)))
 
 	if len(server) <= 0 {
-		log.Fatal("server variable still empty")
+		t.Fatal("server variable still empty")
 	}
 
-	genUser, err := pkg.GenRandomNumber(3, 9);
-	genDomain, err := pkg.GenRandomNumber(3, 9)
-	genTld, err := pkg.GenRandomNumber(3, 6)
-	genPassword, err := pkg.GenRandomNumber(6, 9)
+	// wait for server to be ready with proper health check (with required headers)
+	t.Log("waiting for server to be ready...")
+	maxRetries := 40
+	for i := 0; i < maxRetries; i++ {
+		req, err := http.NewRequest(http.MethodGet, server+backend_api.BackendApiStatusHint, nil)
+		if err != nil {
+			time.Sleep(1000 * time.Millisecond)
+			continue
+		}
 
-	user, _ := pkg.GenRandomAlphanumeric(genUser)
-	domain, _ := pkg.GenRandomAlphanumeric(genDomain)
-	tld, _ := pkg.GenRandomAlphanumeric(genTld)
-	password, _ = pkg.GenRandomAlphanumeric(genPassword)
+		// must include whitelist headers for status endpoint
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
 
-	email = fmt.Sprintf("%s@%s.%s",
-		strings.ToLower(user),
-		strings.ToLower(domain),
-		strings.ToLower(tld))
+		client := &http.Client{Timeout: 2 * time.Second}
+		resp, err := client.Do(req)
+		if err == nil && resp.StatusCode == http.StatusOK {
+			resp.Body.Close()
+			t.Logf("server ready after %d retries", i+1)
+			return
+		}
+		if resp != nil {
+			resp.Body.Close()
+		}
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	t.Fatal("server failed to start within timeout - check server logs above for errors")
+}
+
+// stop backend server and cleanup resources properly
+func teardownTestServer(t *testing.T) {
+	t.Helper()
+
+	if serverProcess != nil && serverProcess.Process != nil {
+		t.Log("stopping server gracefully...")
+
+		// try graceful shutdown first with sigterm
+		if err := serverProcess.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Logf("failed to send sigterm: %v, forcing kill", err)
+			// fallback to sigkill if sigterm fails
+			if err := serverProcess.Process.Kill(); err != nil {
+				t.Logf("failed to kill process: %v", err)
+			}
+		}
+
+		// wait for process to exit with timeout
+		done := make(chan error, 1)
+		go func() {
+			done <- serverProcess.Wait()
+		}()
+
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Logf("server process exited with: %v", err)
+			} else {
+				t.Log("server process exited cleanly")
+			}
+		case <-time.After(5 * time.Second):
+			t.Log("server did not exit within 5 seconds, forcing kill")
+			if err := serverProcess.Process.Kill(); err != nil {
+				t.Logf("failed to force kill: %v", err)
+			}
+			<-done // wait for wait() to return
+		}
+	}
+
+	// cleanup binary file from project root
+	binaryPath := filepath.Join(projectRoot, testBinary)
+	if err := os.Remove(binaryPath); err != nil {
+		t.Logf("warning: failed to remove test binary %s: %v", binaryPath, err)
+	}
+
+	// verify port is actually released before test completes
+	// use bind approach instead of dial to avoid false positives
+	port := cfg.Listener.BackendApi.Port
+	address := fmt.Sprintf("%s:%d", cfg.Listener.BackendApi.Address, port)
+	t.Logf("verifying port %s is released...", address)
+
+	maxRetries := 50
+	for i := 0; i < maxRetries; i++ {
+		// try to bind to the port - if successful, it means the port is truly free
+		listener, err := net.Listen("tcp", address)
+		if err == nil {
+			// port is free! close our test listener
+			listener.Close()
+			t.Logf("port %s successfully released after %d checks", address, i+1)
+			return
+		}
+
+		// port is still in use, wait and retry
+		time.Sleep(1000 * time.Millisecond)
+	}
+
+	// final check: see what's actually using the port
+	t.Logf("port %s still appears to be in use, checking what's holding it...", address)
+	cmd := exec.Command("lsof", "-i", fmt.Sprintf(":%d", port))
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Logf("processes using port %d:\n%s", port, string(output))
+	} else {
+		t.Logf("could not check port usage: %v", err)
+	}
+
+	t.Logf("warning: port %s may still be in time_wait state or held by another process", address)
 }
 
 // --------------------------------------------------------- //
 
-func TestBackendApi_1_check_status(t *testing.T) {
-	initializeConfig()
+// generate random test user data with valid email format
+func generateTestData() {
+	// use simple valid email format to avoid validation errors
+	timestamp := time.Now().UnixNano()
+	email = fmt.Sprintf("test%d@example.com", timestamp)
 
-	url := fmt.Sprint(server + backend_api.BackendApiStatusHint)
-	body := []byte(nil)
-
-	if len(cfg.Security.WhitelistHost) <= 0 || len(cfg.Security.WhitelistOrigin) <= 0 {
-		t.Fatal("whitelist host or whitelist origin can't be empty\n")
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, bytes.NewBuffer(body)); if err != nil {
-		t.Fatalf("fail to make new request; %v\n", err.Error())
-	}
-
-	req.Host = cfg.Security.WhitelistHost[0]
-	req.Header.Set(pkg.HTTP_HEADER_ORIGIN, cfg.Security.WhitelistOrigin[0])
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req); if err != nil {
-		t.Fatalf("can't do client request: %v\n", err.Error())
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expecting 200 but got %d; resp body: %v\n", resp.StatusCode, string(respBody))
-	}
+	// generate secure password
+	genPassword, _ := pkg.GenRandomNumber(8, 12)
+	password, _ = pkg.GenRandomAlphanumeric(genPassword)
 }
 
-func TestBackendApi_2_create_account_user(t *testing.T) {
-	url := fmt.Sprint(server + backend_api_account.BackendApiAccountUserHint)
-	body := map[string]any{
-		"email": email,
-		"password": password,
-	}
-	bodyBytes, err := json.Marshal(body); if err != nil {
-		t.Fatal("fail to make json marshal\n")
-	}
+// --------------------------------------------------------- //
 
-	req, err := http.NewRequest(http.MethodPost,
-		url, bytes.NewBuffer(bodyBytes)); if err != nil {
-		t.Fatalf("fail to make new request; %v\n", err.Error())
-	}
+func TestBackendApi_IntegrationSuite(t *testing.T) {
+	// run all tests sequentially in one suite to maintain state dependency
+	setupTestServer(t)
+	defer teardownTestServer(t)
 
-	req.Host = cfg.Security.WhitelistHost[0]
-	req.Header.Set(pkg.HTTP_HEADER_ORIGIN, cfg.Security.WhitelistOrigin[0])
+	t.Run("1_check_status", func(t *testing.T) {
+		generateTestData()
 
-	client := &http.Client{}
+		url := server + backend_api.BackendApiStatusHint
 
-	resp, err := client.Do(req); if err != nil {
-		t.Fatalf("can't do client request; %v\n", err.Error())
-	}
-	defer resp.Body.Close()
+		if len(cfg.Security.WhitelistHost) <= 0 || len(cfg.Security.WhitelistOrigin) <= 0 {
+			t.Fatal("whitelist host or whitelist origin can't be empty")
+		}
 
-	respBody, _ := io.ReadAll(resp.Body)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("fail to make new request: %v", err)
+		}
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expecting 200 but got %d; resp body: %v\n", resp.StatusCode, string(respBody))
-	}
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("can't do client request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expecting 200 but got %d; resp body: %s", resp.StatusCode, string(respBody))
+		}
+		t.Log("status check passed")
+	})
+
+	t.Run("2_create_account_user", func(t *testing.T) {
+		url := server + backend_api_account.BackendApiAccountUserHint
+		body := map[string]any{
+			"email":    email,
+			"password": password,
+		}
+		bodyBytes, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal("fail to make json marshal")
+		}
+
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			t.Fatalf("fail to make new request: %v", err)
+		}
+
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("can't do client request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expecting 200 but got %d; resp body: %s", resp.StatusCode, string(respBody))
+		}
+		t.Log("account creation passed")
+	})
+
+	t.Run("3_get_account_user_id", func(t *testing.T) {
+		url := server + backend_api_account.BackendApiAccountUserHint + "?email=" + email
+
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			t.Fatalf("fail to make new request: %v", err)
+		}
+
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("can't do client request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expecting 200 but got %d", resp.StatusCode)
+		}
+
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("fail to read resp body: %v; body: %s", err, string(respBody))
+		}
+
+		var raw map[string]any
+		err = json.Unmarshal(respBody, &raw)
+		if err != nil {
+			t.Fatalf("unmarshal failed: %v", err)
+		}
+
+		okValue, okExists := raw["ok"]
+		if !okExists {
+			t.Fatal("ok field doesn't exists")
+		}
+
+		ok := okValue.(bool)
+		if !ok {
+			t.Fatal("ok field value must be true")
+		}
+
+		dataValue, dataExists := raw["data"]
+		if !dataExists {
+			t.Fatal("data field doesn't exists")
+		}
+
+		dataMap, dataMapOk := dataValue.(map[string]any)
+		if !dataMapOk {
+			t.Fatalf("data map must be an object; got %T = %v", dataMap, dataMap)
+		}
+
+		idValue, idExists := dataMap["id"]
+		if !idExists {
+			t.Fatal("expecting id field in data object")
+		}
+
+		idStr := strings.TrimSpace(idValue.(string))
+
+		idUuid, err := uuid.Parse(idStr)
+		if err != nil {
+			t.Fatalf("fail to parse id of uuid: %v", err)
+		}
+
+		userId = idUuid
+		authorizationData = base64.StdEncoding.EncodeToString([]byte(userId.String()))
+		t.Log("get account user id passed")
+	})
+
+	t.Run("4_create_session", func(t *testing.T) {
+		url := server + backend_api_auth.BackendApiAuthSessionHint
+
+		req, err := http.NewRequest(http.MethodPost, url, nil)
+		if err != nil {
+			t.Fatalf("fail to make new request: %v", err)
+		}
+
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
+		req.Header.Set("Authorization",
+			mw.AuthorizationHeadKey_bearer+" "+authorizationData)
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("can't do client request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expecting 200 but got %d; resp body: %s", resp.StatusCode, string(respBody))
+		}
+		t.Log("session creation passed")
+	})
+
+	t.Run("5_update_email", func(t *testing.T) {
+		timestamp := time.Now().UnixNano()
+		newEmail := fmt.Sprintf("test-updated%d@example.com", timestamp)
+
+		url := server + backend_api_account.BackendApiAccountUserHint
+		body := map[string]any{
+			"id":    userId.String(),
+			"email": newEmail,
+		}
+		bodyBytes, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal("fail to make json marshal")
+		}
+
+		req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			t.Fatalf("fail to make new request: %v", err)
+		}
+
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
+		req.Header.Set("Authorization",
+			mw.AuthorizationHeadKey_bearer+" "+authorizationData)
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("can't do client request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expecting 200 but got %d; resp body: %s", resp.StatusCode, string(respBody))
+		}
+		t.Log("email update passed")
+	})
+
+	t.Run("6_create_stash", func(t *testing.T) {
+		url := server + backend_api_game1.BackendApiGame1StashHint
+		stashGen, err := pkg.GenRandomAlphanumeric(6)
+		if err != nil {
+			t.Fatalf("fail to generate stash name: %v", err)
+		}
+		stashName = "Stash " + stashGen
+		body := map[string]any{
+			"name": stashName,
+		}
+		bodyBytes, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal("fail to make json marshal")
+		}
+
+		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			t.Fatalf("fail to make new request: %v", err)
+		}
+
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
+		req.Header.Set("Authorization",
+			mw.AuthorizationHeadKey_bearer+" "+authorizationData)
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("can't do client request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expecting 200 but got %d; resp body: %s", resp.StatusCode, string(respBody))
+		}
+		t.Log("stash creation passed")
+	})
+
+	t.Run("7_update_stash", func(t *testing.T) {
+		url := server + backend_api_game1.BackendApiGame1StashHint
+		operand, err := pkg.GenRandomNumber(1, 2)
+		if err != nil {
+			t.Fatalf("fail to generate random number for operand: %v", err)
+		}
+		itemGenLength, err := pkg.GenRandomNumber(3, 9)
+		if err != nil {
+			t.Fatalf("fail to generate random number for itemGenLength: %v", err)
+		}
+		item, err := pkg.GenRandomAlphanumeric(itemGenLength)
+		if err != nil {
+			t.Fatalf("fail to generate item name: %v", err)
+		}
+		quantity, err := pkg.GenRandomNumber(1, 3)
+		if err != nil {
+			t.Fatalf("fail to generate random number for quantity: %v", err)
+		}
+		body := map[string]any{
+			"name":     stashName,
+			"operand":  operand,
+			"item":     item,
+			"quantity": quantity,
+		}
+		bodyBytes, err := json.Marshal(body)
+		if err != nil {
+			t.Fatal("fail to make json marshal")
+		}
+
+		req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			t.Fatalf("fail to make new request: %v", err)
+		}
+
+		req.Host = cfg.Security.WhitelistHost[0]
+		req.Header.Set("Origin", cfg.Security.WhitelistOrigin[0])
+		req.Header.Set("Authorization",
+			mw.AuthorizationHeadKey_bearer+" "+authorizationData)
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("can't do client request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		respBody, _ := io.ReadAll(resp.Body)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expecting 200 got %d; resp body: %s", resp.StatusCode, string(respBody))
+		}
+		t.Log("stash update passed")
+	})
 }
-
-// @note raw control test
-func TestBackendApi_3_get_account_user_id(t *testing.T) {
-	url := fmt.Sprint(
-		server + backend_api_account.BackendApiAccountUserHint + "?email=" + email)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil); if err != nil {
-		t.Fatalf("fail to make new request; %v\n", err.Error())
-	}
-
-	req.Host = cfg.Security.WhitelistHost[0]
-	req.Header.Set(pkg.HTTP_HEADER_ORIGIN, cfg.Security.WhitelistOrigin[0])
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req); if err != nil {
-		t.Fatalf("can't do client request; %v\n", err.Error())
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expecting 200 but got %d\n", resp.StatusCode)
-	}
-
-	respBody, err := io.ReadAll(resp.Body); if err != nil {
-		t.Fatalf("fail to read resp body data; %v; body: %s\n", err.Error(), string(respBody))
-	}
-
-	var raw map[string]any
-	err = json.Unmarshal(respBody, &raw); if err != nil {
-		t.Fatalf("unmarshal failed %v\n", err.Error())
-	}
-
-	okValue, okExists := raw["ok"]; if !okExists {
-		t.Fatal("ok field doesn't exists\n")
-	}
-
-	ok := okValue.(bool); if !ok {
-		t.Fatalf("ok field value must be true\n")
-	}
-
-	dataValue, dataExists := raw["data"]; if !dataExists {
-		t.Fatalf("data field doesn't exists\n")
-	}
-
-	dataMap, dataMapOk := dataValue.(map[string]any); if !dataMapOk {
-		t.Fatalf("data map must be an object; got %T = %v\n", dataMap, dataMap)
-	}
-
-	idValue, idExists := dataMap["id"]; if !idExists {
-		t.Fatal("expecting id field in data object\n")
-	}
-
-	idStr := strings.TrimSpace(idValue.(string))
-
-	idUuid, err := uuid.Parse(idStr); if err != nil {
-		t.Fatalf("fail to parse id of uuid; %v\n", err.Error())
-	}
-
-	userId = idUuid
-	authorizationData = base64.StdEncoding.EncodeToString([]byte(userId.String()))
-}
-
-func TestBackendApi_4_create_session(t *testing.T) {
-	url := fmt.Sprint(server + backend_api_auth.BackendApiAuthSessionHint)
-
-	req, err := http.NewRequest(http.MethodPost, url, nil); if err != nil {
-		t.Fatalf("fail to make new request; %v\n", err.Error())
-	}
-
-	req.Host = cfg.Security.WhitelistHost[0]
-	req.Header.Set(pkg.HTTP_HEADER_ORIGIN, cfg.Security.WhitelistOrigin[0])
-	req.Header.Set(pkg.HTTP_HEADER_AUTHORIZATION,
-		mw.AuthorizationHeadKey_bearer+" "+authorizationData)
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req); if err != nil {
-		t.Fatalf("can't do client request; %v\n", err.Error())
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expecting 200 but got %d; resp body: %v\n", resp.StatusCode, string(respBody))
-	}
-}
-
-func TestBackendApi_5_update_email(t *testing.T) {
-	genUser, _ := pkg.GenRandomNumber(3, 9)
-	genDomain, _ := pkg.GenRandomNumber(3, 9)
-	genTld, _ := pkg.GenRandomNumber(3, 6)
-	user, _ := pkg.GenRandomAlphanumeric(genUser)
-	domain, _ := pkg.GenRandomAlphanumeric(genDomain)
-	tld, _ := pkg.GenRandomAlphanumeric(genTld)
-
-	newEmail := fmt.Sprintf("%s@%s.%s",
-		strings.ToLower(user),
-		strings.ToLower(domain),
-		strings.ToLower(tld))
-
-	url := fmt.Sprint(server + backend_api_account.BackendApiAccountUserHint)
-	body := map[string]any{
-		"id": userId.String(),
-		"email": newEmail,
-	}
-	bodyBytes, err := json.Marshal(body); if err != nil {
-		t.Fatal("fail to make json marshal\n")
-	}
-
-	req, err := http.NewRequest(http.MethodPatch, url,
-		bytes.NewBuffer(bodyBytes)); if err != nil {
-		t.Fatalf("fail to make new request; %v\n", err.Error())
-	}
-
-	req.Host = cfg.Security.WhitelistHost[0]
-	req.Header.Set(pkg.HTTP_HEADER_ORIGIN, cfg.Security.WhitelistOrigin[0])
-	req.Header.Set(pkg.HTTP_HEADER_AUTHORIZATION,
-		mw.AuthorizationHeadKey_bearer+" "+authorizationData)
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req); if err != nil {
-		t.Fatalf("can't do client request; %v\n", err.Error())
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expecting 200 but got %d; resp body: %v\n", resp.StatusCode, string(respBody))
-	}
-}
-
-func TestBackendApi_6_create_stash(t *testing.T) {
-	url := fmt.Sprint(server + backend_api_game1.BackendApiGame1StashHint)
-	stashGen, err := pkg.GenRandomAlphanumeric(6)
-	stashName = "Stash " + stashGen
-	body := map[string]any{
-		"name": stashName,
-	}
-	bodyBytes, err := json.Marshal(body); if err != nil {
-		t.Fatal("fail to make json marshal\n")
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url,
-		bytes.NewBuffer(bodyBytes)); if err != nil {
-		t.Fatalf("fail to make new request; %v\n", err.Error())
-	}
-
-	req.Host = cfg.Security.WhitelistHost[0]
-	req.Header.Set(pkg.HTTP_HEADER_ORIGIN, cfg.Security.WhitelistOrigin[0])
-	req.Header.Set(pkg.HTTP_HEADER_AUTHORIZATION,
-		mw.AuthorizationHeadKey_bearer+" "+authorizationData)
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req); if err != nil {
-		t.Fatalf("can't do client request; %v\n", err.Error())
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expecting 200 but got %d; resp body: %v\n", resp.StatusCode, string(respBody))
-	}
-}
-
-func TestBackendApi_7_update_stash(t *testing.T) {
-	url := fmt.Sprint(server + backend_api_game1.BackendApiGame1StashHint)
-	operand, err := pkg.GenRandomNumber(1, 2); if err != nil {
-		t.Fatalf("fail to generate random number for operand; %v\n", err.Error())
-	}
-	itemGenLength, err := pkg.GenRandomNumber(3, 9); if err != nil {
-		t.Fatalf("fail to generate random number for itemGenLength; %v\n", err.Error())
-	}
-	item, err := pkg.GenRandomAlphanumeric(itemGenLength); if err != nil {
-		t.Fatalf("fail to generate item name; %v\n", err.Error())
-	}
-	quantity, err := pkg.GenRandomNumber(1, 3); if err != nil {
-		t.Fatalf("fail to genrate random number for quantity; %v\n", err.Error())
-	}
-	body := map[string]any{
-		"name": stashName,
-		"operand": operand,
-		"item": item,
-		"quantity": quantity,
-	}
-	bodyBytes, err := json.Marshal(body); if err != nil {
-		t.Fatal("fail to make json json.Marshal\n")
-	}
-
-	req, err := http.NewRequest(http.MethodPatch,
-		url, bytes.NewBuffer(bodyBytes)); if err != nil {
-		t.Fatalf("fail to make new request; %v\n", err.Error())
-	}
-
-	req.Host = cfg.Security.WhitelistHost[0]
-	req.Header.Set(pkg.HTTP_HEADER_ORIGIN, cfg.Security.WhitelistOrigin[0])
-	req.Header.Set(pkg.HTTP_HEADER_AUTHORIZATION,
-		mw.AuthorizationHeadKey_bearer+" "+authorizationData)
-
-	client := &http.Client{}
-
-	resp, err := client.Do(req); if err != nil {
-		t.Fatalf("can't do client request; %v\n", err.Error())
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expecting 200 got %d; resp body: %v\n", resp.StatusCode, string(respBody))
-	}
-}
-
