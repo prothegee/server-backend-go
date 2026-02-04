@@ -1,6 +1,7 @@
-# showcase backend go
+# server backend go
 
-a showcase backend using go, postgresql, & redis
+a server backend using go, postgresql, & redis
+using domain-driven & test-driven development
 
 __*prequiste:*__
 
@@ -17,7 +18,7 @@ __*prequiste:*__
 __*before anything (build, run, test):*__
 
 1. check on the this root project for config.json:
-    - if doesn't exists, copy paste from config.json.template to config.json
+    - if doesn't exists, copy paste from config.json.template to config.json and modify it as you need
 
 2. check:
     - [backend_api listener](./config.json.template:4)
@@ -25,18 +26,10 @@ __*before anything (build, run, test):*__
     - [redis main db](./config.json.template:21)
 
 3. scripts:
-    - [to build](./dbuild.sh)
-    - [to debug use dlv](./ddebug.sh)
-    - [to run the development](./drun.sh)
-    - [to test *required to run the service/s first](./dtest.sh)
-
-<br>
-
-__*to run the test:*__
-
-1. after all those 3 already checked
-2. open a terminal, then you can run the service by run [`./drun.sh`](./drun.sh)
-3. open another terminal session then run [`./dtest.sh`](./dtest.sh)
+    - [to build](./run-build.sh)
+    - [to test](./run-test.sh)
+    - [to debug use dlv](./run-debug.sh)
+    - [to run the development backend_api](./run-backend_api.sh)
 
 <br>
 
