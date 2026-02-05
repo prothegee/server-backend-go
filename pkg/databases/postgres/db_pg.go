@@ -62,6 +62,9 @@ func SslModes() [4]string {
 // --------------------------------------------------------- //
 
 // this is only for postgres db main
+//
+// params:
+//	fp string - file path
 func (_ DbPgMain) InitPgDbMain(fp string) {
 	var sb strings.Builder
 
@@ -146,7 +149,11 @@ func (_ DbPgMain) InitPgDbMain(fp string) {
 	_, err = db.Exec(ctx, sqlCmd)
 	if err != nil {
 		// allowing error treat as info
-		log.Printf("INFO: \"%s\" may/not been created; IGNORE %v\n", pgConn.Database, err.Error())
+		if strings.Contains(err.Error(), "42P04") {
+			log.Printf("INFO: \"%s\" already created; skipping creation\n", pgConn.Database)
+		} else {
+			log.Fatalf("ERROR: \"%s\" unexpected: %v\n", pgConn.Database, err.Error())
+		}
 	}
 }
 
