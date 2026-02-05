@@ -1,7 +1,12 @@
+/*
+IMPORTANT:
+- should be on last test
+*/
 package test_unittest
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -25,6 +30,7 @@ import (
 	mw "showcase-backend-go/pkg/middleware"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 // --------------------------------------------------------- //
@@ -88,6 +94,74 @@ func findProjectRoot() (string, error) {
 	return "", fmt.Errorf("project root not found")
 }
 
+// create database if not exists, mimics server's InitPgDbMain logic
+// uses t.Log for proper test logging
+func createDatabaseIfNotExists(t *testing.T, configPath string) {
+	t.Helper()
+
+	ctx := context.Background()
+	content, err := pkg.ConfigServerLoad(configPath)
+	if err != nil {
+		t.Fatalf("failed to load config: %v", err)
+	}
+
+	// extract postgres connection info
+	pgConfig := content.Database.PostgreSQL.Main
+	t.Logf("database config: host=%s, port=%d, user=%s, database=%s",
+		pgConfig.Host, pgConfig.Port, pgConfig.User, pgConfig.Database)
+
+	// build connection string without database name (connect to default 'postgres')
+	var connStrBuilder strings.Builder
+	connStrBuilder.WriteString("user=")
+	connStrBuilder.WriteString(pgConfig.User)
+
+	if len(pgConfig.Password) > 0 {
+		connStrBuilder.WriteString(" password=")
+		connStrBuilder.WriteString(pgConfig.Password)
+	}
+
+	connStrBuilder.WriteString(" host=")
+	connStrBuilder.WriteString(pgConfig.Host)
+
+	connStrBuilder.WriteString(" port=")
+	connStrBuilder.WriteString(fmt.Sprintf("%d", pgConfig.Port))
+
+	connStrBuilder.WriteString(" dbname=postgres") // connect to default database
+	connStrBuilder.WriteString(" sslmode=")
+	connStrBuilder.WriteString(pgConfig.SslMode)
+
+	connStr := connStrBuilder.String()
+	t.Logf("connecting to postgres with: %s", connStr)
+
+	// connect to postgres database
+	db, err := pgx.Connect(ctx, connStr)
+	if err != nil {
+		t.Fatalf("failed to connect to postgres: %v", err)
+	}
+	defer db.Close(ctx)
+
+	t.Log("NOTICE: start L139")
+
+	// create database if not exists
+	// escape database name to prevent sql injection
+	escapedDB := strings.ReplaceAll(pgConfig.Database, "'", "''")
+	createDBSQL := fmt.Sprintf("CREATE DATABASE \"%s\"", escapedDB)
+
+	t.Log("NOTICE: reaching L144")
+
+	_, err = db.Exec(ctx, createDBSQL)
+	if err != nil {
+		// check if error is "database already exists" (sqlstate 42p04)
+		if strings.Contains(err.Error(), "42P04") {
+			t.Logf("database \"%s\" already exists, skipping creation", pgConfig.Database)
+			return
+		}
+		t.Fatalf("failed to create database: %v", err)
+	}
+
+	t.Logf("database \"%s\" created successfully", pgConfig.Database)
+}
+
 // build and start backend server for integration tests
 func setupTestServer(t *testing.T) {
 	t.Helper()
@@ -104,6 +178,13 @@ func setupTestServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get test directory: %v", err)
 	}
+
+	// load config to get database info
+	configPath := filepath.Join(projectRoot, "config.json")
+	t.Logf("loading config from: %s", configPath)
+
+	// create database before building server
+	createDatabaseIfNotExists(t, configPath)
 
 	// build the server binary in project root
 	t.Log("building server binary...")
@@ -132,9 +213,6 @@ func setupTestServer(t *testing.T) {
 	}
 
 	// load config using absolute path
-	configPath := filepath.Join(projectRoot, "config.json")
-	t.Logf("loading config from: %s", configPath)
-
 	cfg, err = pkg.ConfigServerLoad(configPath)
 	if err != nil {
 		t.Fatalf("failed to load config: %v", err)
