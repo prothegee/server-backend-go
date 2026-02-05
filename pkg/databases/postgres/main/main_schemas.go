@@ -13,7 +13,7 @@ import (
 
 const (
 	SchemaAccount = "account"
-	SchemaGame1 = "game1"
+	SchemaGame1   = "game1"
 )
 
 func Schemas() []string {
@@ -23,13 +23,14 @@ func Schemas() []string {
 	}
 }
 
-// @brief initialize all schema for postgresql main
+// initialize all schema for postgresql main
 func InitSchemas(db *pgx.Conn) error {
 	var pgConn dbpg.PgConn_tj
 
-	db, err := dbpg.PgDb(config.BACKEND_API_CONFIG_JSON, &pgConn); if err != nil {
+	db, err := dbpg.PgDb(config.BACKEND_API_CONFIG_JSON, &pgConn)
+	if err != nil {
 		log.Fatalf("ERROR: %v", err)
-		return err;
+		return err
 	}
 
 	for _, val := range Schemas() {
@@ -43,4 +44,3 @@ func InitSchemas(db *pgx.Conn) error {
 
 	return nil
 }
-

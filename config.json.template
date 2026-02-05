@@ -13,7 +13,7 @@
 				"port": 5432,
 				"user": "postgres",
 				"password": "",
-				"database": "showcase_backend_go",
+				"database": "server_backend_go",
 				"sslmode": "disable"
 			}
 		},

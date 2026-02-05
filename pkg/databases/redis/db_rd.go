@@ -11,69 +11,72 @@ import (
 
 // --------------------------------------------------------- //
 
-// @brief redis connection type
+// redis connection type
 type RdConn_t struct {
-	Host string
-	Port int16
-	User string
+	Host     string
+	Port     int16
+	User     string
 	Password string
-	Db int32
+	Db       int32
 }
 
 // @brief redis connection type json
 type RdConn_tj struct {
-	Host string `json:"host"`
-	Port int16 `json:"port"`
-	User string `json:"user"`
+	Host     string `json:"host"`
+	Port     int16  `json:"port"`
+	User     string `json:"user"`
 	Password string `json:"password"`
-	Db int32 `json:"db"`
+	Db       int32  `json:"db"`
 }
 
 // --------------------------------------------------------- //
 
-// @brief make connection from config server file
+// make connection from config server file
 //
-// @param fp string - file path
+// params:
+// 	fp string - file path
+// 	pgConn *PgConn_tj
 //
-// @param pgConn *PgConn_tj
-//
-// @return (string, error)
+// return: (string, error)
 func MakeConnFromConfigServerFile(fp string, rdConn *RdConn_tj) (*redis.Options, error) {
-	content, err := pkg.ConfigServerLoad(fp); if err != nil {
+	content, err := pkg.ConfigServerLoad(fp)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: db_rd fail to read file '%v'", err)
 		return nil, err
 	}
 
 	rdConn = &RdConn_tj{
-		Host: content.Database.Redis.Main.Host,
-		Port: int16(content.Database.Redis.Main.Port),
-		User: content.Database.Redis.Main.User,
+		Host:     content.Database.Redis.Main.Host,
+		Port:     int16(content.Database.Redis.Main.Port),
+		User:     content.Database.Redis.Main.User,
 		Password: content.Database.Redis.Main.Password,
-		Db: content.Database.Redis.Main.Db,
+		Db:       content.Database.Redis.Main.Db,
 	}
 
 	addr := fmt.Sprintf("%s:%s", rdConn.Host, strconv.Itoa(int(rdConn.Port)))
 
 	base := &redis.Options{
-		Addr: addr,
+		Addr:     addr,
 		Username: rdConn.User,
 		Password: rdConn.Password,
-		DB: int(rdConn.Db),
+		DB:       int(rdConn.Db),
 	}
 
 	return base, nil
 }
 
-// @brief get instance of redis db
+// get instance of redis db
 //
-// @note closing db connection should be in main function who responsible to make the connection
+// closing db connection should be in main function who responsible to make the connection
 //
-// @param fp string - filepath
-// @param cfg *RdConn_tj - redis connection type json
+// params:
+// 	fp string - filepath
+// 	cfg *RdConn_tj - redis connection type json
 //
 // @return (*redis.Client, error)
 func RdDb(fp string, cfg *RdConn_tj) (*redis.Client, error) {
-	base, err := MakeConnFromConfigServerFile(fp, cfg); if err != nil {
+	base, err := MakeConnFromConfigServerFile(fp, cfg)
+	if err != nil {
 		return nil, err
 	}
 
@@ -88,4 +91,3 @@ var (
 	// the connection should be reuseable and no need to close in runtime
 	MainDb *redis.Client = nil
 )
-

@@ -16,11 +16,11 @@ var (
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
 
-	connections = make(map[*websocket.Conn]struct{})
+	connections    = make(map[*websocket.Conn]struct{})
 	connectionsMtx sync.Mutex
-	
+
 	consumerRunning bool
-	consumerMtx sync.Mutex
+	consumerMtx     sync.Mutex
 )
 
 // --------------------------------------------------------- //
@@ -87,15 +87,17 @@ func isConsumerRunning() bool {
 func startKafkaConsumer() {
 	consumer, err := kafka.NewConsumer(&kafka.ConfigMap{
 		"bootstrap.servers": "127.0.0.1:9092",
-		"group.id": "grp-consumer1",
-	}); if err != nil {
+		"group.id":          "grp-consumer1",
+	})
+	if err != nil {
 		log.Printf("fail to create consumer: %v\n", err.Error())
 		setConsumerRunning(false)
 		return
 	}
 	defer consumer.Close()
 
-	err = consumer.Subscribe(pkg.GOKAFKA_STOCK_TRADE_TOPIC, nil); if err != nil {
+	err = consumer.Subscribe(pkg.GOKAFKA_STOCK_TRADE_TOPIC, nil)
+	if err != nil {
 		log.Printf("consumer failed to subscribe: %v\n", err.Error())
 		setConsumerRunning(false)
 		return
@@ -105,26 +107,27 @@ func startKafkaConsumer() {
 		msg, err := consumer.ReadMessage(
 			time.Millisecond * pkg.GOKAFKA_DELAY_MS)
 
-			if err == nil {
-				payload := msg.Value
+		if err == nil {
+			payload := msg.Value
 
-				conns := getActiveConnections()
-				badConns := make([]*websocket.Conn, 0)
+			conns := getActiveConnections()
+			badConns := make([]*websocket.Conn, 0)
 
-				for _, conn := range conns {
-					err := conn.WriteMessage(
-						websocket.TextMessage, payload); if err != nil {
-							badConns = append(badConns, conn)
-						}
-				}
-
-				// remove broken connection
-				for _, conn := range badConns {
-					removeConnection(conn)
-					conn.Close()
+			for _, conn := range conns {
+				err := conn.WriteMessage(
+					websocket.TextMessage, payload)
+				if err != nil {
+					badConns = append(badConns, conn)
 				}
 			}
-			// ignore
+
+			// remove broken connection
+			for _, conn := range badConns {
+				removeConnection(conn)
+				conn.Close()
+			}
+		}
+		// ignore
 	}
 
 	setConsumerRunning(false)
@@ -133,8 +136,10 @@ func startKafkaConsumer() {
 // --------------------------------------------------------- //
 
 const BackendWsStockTradeHint = "/ws/stock/trade"
+
 func BackendWsStockTrade(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil); if err != nil {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
 		log.Printf("fail to upgrade connection to websocket: %v\n", err.Error())
 		return
 	}
@@ -148,11 +153,11 @@ func BackendWsStockTrade(w http.ResponseWriter, r *http.Request) {
 	// read message until connection close
 	// end-user only consume what publisher do
 	for {
-		_, _, err := conn.ReadMessage(); if err != nil {
+		_, _, err := conn.ReadMessage()
+		if err != nil {
 			break
 		}
 	}
 
 	log.Print("connection closed\n")
 }
-

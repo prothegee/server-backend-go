@@ -17,18 +17,19 @@ var testDbContext context.Context = context.Background()
 
 // --------------------------------------------------------- //
 
-// @brief test for db_pg package postgresql with flow implementation
-func TestSqlCommand(t *testing.T) {
+func Test_SqlCommand(t *testing.T) {
 	var (
 		pgConn db_pg.PgConn_tj
 	)
 
 	conn, err := db_pg.MakeConnFromConfigServerFile(
-		config.BACKEND_API_CONFIG_JSON, &pgConn); if err != nil {
+		config.BACKEND_API_CONFIG_JSON, &pgConn)
+	if err != nil {
 		t.Errorf("ERROR: %v\n", err)
 	}
 
-	db, err := pgx.Connect(testDbContext, conn); if err != nil {
+	db, err := pgx.Connect(testDbContext, conn)
+	if err != nil {
 		t.Errorf("ERROR: %v\n", err)
 	}
 
@@ -40,13 +41,14 @@ func TestSqlCommand(t *testing.T) {
 	}
 }
 
-// @brief test for db_pg direct initialization
-func TestSqlCommanDbPg(t *testing.T) {
+// test for db_pg direct initialization
+func Test_SqlCommanDbPg(t *testing.T) {
 	var (
 		pgConn db_pg.PgConn_tj
 	)
 
-	db, err := db_pg.PgDb(config.BACKEND_API_CONFIG_JSON, &pgConn); if err != nil {
+	db, err := db_pg.PgDb(config.BACKEND_API_CONFIG_JSON, &pgConn)
+	if err != nil {
 		t.Errorf("ERROR: %v", err)
 	}
 	defer db.Close(context.Background())
@@ -57,4 +59,3 @@ func TestSqlCommanDbPg(t *testing.T) {
 		t.Errorf("ERROR: %v", err)
 	}
 }
-

@@ -18,13 +18,13 @@ import (
 // --------------------------------------------------------- //
 
 type postAccountUserRequestData struct {
-	Email string `json:"email"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
 type patchAccountUserRequestData struct {
-	Id uuid.UUID `json:"id"`
-	Email string `json:"email"`
+	Id    uuid.UUID `json:"id"`
+	Email string    `json:"email"`
 }
 
 type deleteAccountUserRequestData = patchAccountUserRequestData
@@ -33,10 +33,10 @@ type deleteAccountUserRequestData = patchAccountUserRequestData
 
 func getAccountUser(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
 	email := r.URL.Query().Get("email")
@@ -46,7 +46,8 @@ func getAccountUser(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err := json.NewEncoder(w).Encode(resp); if err != nil {
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -54,12 +55,14 @@ func getAccountUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := db_pg_main_account_user.User{}
-	id, err := user.SelectIdByEmail(db_pg.MainDb, ctx, email); if err != nil {
+	id, err := user.SelectIdByEmail(db_pg.MainDb, ctx, email)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -67,7 +70,8 @@ func getAccountUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// given info to data field/key
-	data, err := json.Marshal(map[string]string{"id": id.String()}); if err != nil {
+	data, err := json.Marshal(map[string]string{"id": id.String()})
+	if err != nil {
 		http.Error(w, "Marshal Failed", http.StatusInternalServerError)
 		return
 	}
@@ -76,7 +80,8 @@ func getAccountUser(w http.ResponseWriter, r *http.Request) {
 	resp.Message = "found"
 	resp.Data = json.RawMessage(data)
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -85,18 +90,20 @@ func getAccountUser(w http.ResponseWriter, r *http.Request) {
 func postAccountUser(w http.ResponseWriter, r *http.Request) {
 	req := postAccountUserRequestData{}
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&req); if err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_NOT_VALID,
 			http.StatusBadRequest)
 		return
 	}
-	_, err = json.Marshal(req); if err != nil {
+	_, err = json.Marshal(req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_FAIL_TO_PARSE,
 			http.StatusBadRequest)
 		return
@@ -108,7 +115,8 @@ func postAccountUser(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -120,7 +128,8 @@ func postAccountUser(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusPreconditionRequired)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -130,12 +139,14 @@ func postAccountUser(w http.ResponseWriter, r *http.Request) {
 	accountUser := db_pg_main_account_user.User{}
 
 	err = accountUser.InsertNewUserByEmail(db_pg.MainDb,
-		ctx, req.Email, req.Password); if err != nil {
+		ctx, req.Email, req.Password)
+	if err != nil {
 		resp.Message = "email already in used"
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -145,7 +156,8 @@ func postAccountUser(w http.ResponseWriter, r *http.Request) {
 	resp.Ok = true
 	resp.Message = "created"
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -154,19 +166,21 @@ func postAccountUser(w http.ResponseWriter, r *http.Request) {
 func pathAccountUser(w http.ResponseWriter, r *http.Request) {
 	req := patchAccountUserRequestData{}
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
 	authorization := r.Header.Get(pkg.HTTP_HEADER_AUTHORIZATION)
-	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization); if err != nil {
+	uid, err := mw.CheckAuthorizationHeaderBearer(w, authorization)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -174,12 +188,14 @@ func pathAccountUser(w http.ResponseWriter, r *http.Request) {
 	}
 	mw.CheckAuthorizationHeaderBearerSession(w, &resp, ctx, uid)
 
-	err = json.NewDecoder(r.Body).Decode(&req); if err != nil {
+	err = json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_NOT_VALID,
 			http.StatusBadRequest)
 		return
 	}
-	_, err = json.Marshal(req); if err != nil {
+	_, err = json.Marshal(req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_FAIL_TO_PARSE,
 			http.StatusBadRequest)
 		return
@@ -187,24 +203,28 @@ func pathAccountUser(w http.ResponseWriter, r *http.Request) {
 
 	accountUser := db_pg_main_account_user.User{}
 
-	_, err = accountUser.SelectEmailIfExists(db_pg.MainDb, ctx, req.Email); if err != nil {
+	_, err = accountUser.SelectEmailIfExists(db_pg.MainDb, ctx, req.Email)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
 
-	err = accountUser.UpdateEmailById(db_pg.MainDb, ctx, req.Id, req.Email); if err != nil {
+	err = accountUser.UpdateEmailById(db_pg.MainDb, ctx, req.Id, req.Email)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -214,7 +234,8 @@ func pathAccountUser(w http.ResponseWriter, r *http.Request) {
 	resp.Ok = true
 	resp.Message = "patched"
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -223,18 +244,20 @@ func pathAccountUser(w http.ResponseWriter, r *http.Request) {
 func deleteAccountUser(w http.ResponseWriter, r *http.Request) {
 	req := deleteAccountUserRequestData{}
 	ctx := context.Background()
-	resp := pkg.Response_tj {
-		Ok: false,
+	resp := pkg.Response_tj{
+		Ok:      false,
 		Message: "n/a",
-		Data: json.RawMessage("null"),
+		Data:    json.RawMessage("null"),
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&req); if err != nil {
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_NOT_VALID,
 			http.StatusBadRequest)
 		return
 	}
-	_, err = json.Marshal(req); if err != nil {
+	_, err = json.Marshal(req)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_JSON_BODY_FAIL_TO_PARSE,
 			http.StatusBadRequest)
 		return
@@ -242,35 +265,41 @@ func deleteAccountUser(w http.ResponseWriter, r *http.Request) {
 
 	accountUser := db_pg_main_account_user.User{}
 
-	_, err = accountUser.SelectIdByEmail(db_pg.MainDb, ctx, req.Email); if err != nil {
+	_, err = accountUser.SelectIdByEmail(db_pg.MainDb, ctx, req.Email)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
-	_, err = accountUser.SelectEmailIfExists(db_pg.MainDb, ctx, req.Email); if err != nil {
+	_, err = accountUser.SelectEmailIfExists(db_pg.MainDb, ctx, req.Email)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
 		return
 	}
 
-	err = accountUser.DeleteDataByIdAndEmail(db_pg.MainDb, ctx, req.Id, req.Email); if err != nil {
+	err = accountUser.DeleteDataByIdAndEmail(db_pg.MainDb, ctx, req.Id, req.Email)
+	if err != nil {
 		resp.Message = err.Error()
 
 		w.WriteHeader(http.StatusBadRequest)
 
-		err = json.NewEncoder(w).Encode(resp); if err != nil {
+		err = json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 				http.StatusInternalServerError)
 		}
@@ -280,7 +309,8 @@ func deleteAccountUser(w http.ResponseWriter, r *http.Request) {
 	resp.Ok = true
 	resp.Message = "deleted"
 
-	err = json.NewEncoder(w).Encode(resp); if err != nil {
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 	}
@@ -289,26 +319,31 @@ func deleteAccountUser(w http.ResponseWriter, r *http.Request) {
 // --------------------------------------------------------- //
 
 const BackendApiAccountUserHint = "/api/account/user"
+
 func BackendApiAccountUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(pkg.HTTP_CT_HINT, pkg.HTTP_CT_APPLICATION_JSON)
 
 	switch method := r.Method; method {
-		case http.MethodGet: {
+	case http.MethodGet:
+		{
 			getAccountUser(w, r)
 		}
-		case http.MethodPost: {
+	case http.MethodPost:
+		{
 			postAccountUser(w, r)
 		}
-		case http.MethodPatch: {
+	case http.MethodPatch:
+		{
 			pathAccountUser(w, r)
 		}
-		case http.MethodDelete: {
+	case http.MethodDelete:
+		{
 			deleteAccountUser(w, r)
 		}
-		default: {
+	default:
+		{
 			http.Error(w, pkg.STATUS_RESP_MESSAGE_METHOD_NOT_ALLOWED,
 				http.StatusMethodNotAllowed)
 		}
 	}
 }
-

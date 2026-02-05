@@ -29,8 +29,7 @@ import (
 
 // --------------------------------------------------------- //
 
-func handlerMiddlewares(h http.HandlerFunc, middlewares...
-						func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
+func handlerMiddlewares(h http.HandlerFunc, middlewares ...func(http.HandlerFunc) http.HandlerFunc) http.HandlerFunc {
 	for _, m := range middlewares {
 		h = m(h)
 	}
@@ -42,8 +41,8 @@ func handlerMiddlewares(h http.HandlerFunc, middlewares...
 // @brief registrar for postgresql main db
 func RegistrarDbPostgresMain() {
 	var (
-		err error
-		cfg string = config.BACKEND_API_CONFIG_JSON
+		err  error
+		cfg  string = config.BACKEND_API_CONFIG_JSON
 		conn db_pg.PgConn_tj
 	)
 
@@ -52,30 +51,34 @@ func RegistrarDbPostgresMain() {
 
 	ctx := context.Background()
 
-	db_pg.MainDb, err = db_pg.PgDb(cfg, &conn); if err != nil {
+	db_pg.MainDb, err = db_pg.PgDb(cfg, &conn)
+	if err != nil {
 		log.Fatal(err.Error())
 		return
 	}
 
 	// schemas initializee
 	{
-		err = db_pg_main.InitSchemas(db_pg.MainDb); if err != nil {
+		err = db_pg_main.InitSchemas(db_pg.MainDb)
+		if err != nil {
 			log.Fatal(err.Error())
 		}
 	}
 
 	// account schema
 	{
-		account_user := account.User {}
-		err = account_user.InitTable(db_pg.MainDb, ctx); if err != nil {
+		account_user := account.User{}
+		err = account_user.InitTable(db_pg.MainDb, ctx)
+		if err != nil {
 			log.Fatal(err.Error())
 		}
 	}
 
 	// game1 schema
 	{
-		game1_stash := game1.Stash {}
-		err = game1_stash.InitTable(db_pg.MainDb, ctx); if err != nil {
+		game1_stash := game1.Stash{}
+		err = game1_stash.InitTable(db_pg.MainDb, ctx)
+		if err != nil {
 			log.Fatal(err.Error())
 		}
 	}
@@ -85,12 +88,13 @@ func RegistrarDbPostgresMain() {
 
 func RegistrarDbRedisMain() {
 	var (
-		err error
-		cfg string = config.BACKEND_API_CONFIG_JSON
+		err  error
+		cfg  string = config.BACKEND_API_CONFIG_JSON
 		conn db_rd.RdConn_tj
 	)
 
-	db_rd.MainDb, err = db_rd.RdDb(cfg, &conn); if err != nil {
+	db_rd.MainDb, err = db_rd.RdDb(cfg, &conn)
+	if err != nil {
 		log.Fatal(err.Error())
 		return
 	}
@@ -105,7 +109,8 @@ func RegistrarAssets(mux *http.ServeMux) {
 	assetsDir := config.BACKEND_API_ASSETS_DIR
 	publicDir := config.BACKEND_API_PUBLIC_DIR
 
-	err := pkg.CopyDir(assetsDir, publicDir, true); if err != nil {
+	err := pkg.CopyDir(assetsDir, publicDir, true)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		return
 	}

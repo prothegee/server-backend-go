@@ -9,8 +9,10 @@ import (
 )
 
 const BackendApiStatusHint = "/api/status"
+
 func BackendApiStatus(w http.ResponseWriter, r *http.Request) {
-	cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON); if err != nil {
+	cfg, err := pkg.ConfigServerLoad(config.BACKEND_API_CONFIG_JSON)
+	if err != nil {
 		http.Error(w, pkg.STATUS_RESP_MESSAGE_INTERNAL_SERVER_ERROR,
 			http.StatusInternalServerError)
 		return
@@ -22,8 +24,8 @@ func BackendApiStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := pkg.StatusBackend {
-		Ok: true,
+	resp := pkg.StatusBackend{
+		Ok:      true,
 		Version: cfg.Version,
 	}
 
@@ -34,4 +36,3 @@ func BackendApiStatus(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError)
 	}
 }
-

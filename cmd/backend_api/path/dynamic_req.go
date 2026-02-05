@@ -8,8 +8,11 @@ import (
 	"strings"
 )
 
-const BackendPathDynamicFirstPathHint = "/path/"
-const BackendPathDynamicFirstPathHintSplit = "path"
+const (
+	BackendPathDynamicFirstPathHint      = "/path/"
+	BackendPathDynamicFirstPathHintSplit = "path"
+)
+
 func BackendPathDynamic(w http.ResponseWriter, r *http.Request) {
 	pathChunks := strings.Split(r.URL.Path, "/")
 	pathChunksLen := len(pathChunks)
@@ -47,7 +50,7 @@ func BackendPathDynamic(w http.ResponseWriter, r *http.Request) {
 	// remove first index which ""
 	pathChunks = append(pathChunks[:0], pathChunks[1:]...)
 
-	for i,_ := range pathChunks {
+	for i := range pathChunks {
 		ext := fmt.Sprintf("/%s", pathChunks[i])
 		resp.WriteString(ext)
 	}

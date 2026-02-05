@@ -60,6 +60,8 @@ export*.hpp
 
 config/config.*.json.template
 
+/cmd/backend_api/backend_api_test.o
+
 ##
 ## this project
 ##
